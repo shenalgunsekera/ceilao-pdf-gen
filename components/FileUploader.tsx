@@ -28,10 +28,6 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [batchTopic, setBatchTopic] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -81,31 +77,6 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
       setPdfFile(e.target.files[0]);
     } else {
       setError('Please select a valid PDF file.');
-    }
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadProgress(0);
-    try {
-      // Upload file to Dropbox via API route
-      const formData = new FormData();
-      formData.append('file', file);
-      await axios.post('/api/upload-to-dropbox', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
-          }
-        },
-      });
-      setUploadSuccess(true);
-    } catch (err) {
-      setUploadError('Upload failed');
-    } finally {
-      setUploading(false);
     }
   };
 

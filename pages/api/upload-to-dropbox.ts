@@ -43,30 +43,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const form = new formidable.IncomingForm();
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      return res.status(500).json({ error: 'Form parse error', details: err });
-    }
+  try {
+    const form = new formidable.IncomingForm();
+    
+    const parseForm = () => {
+      return new Promise((resolve, reject) => {
+        form.parse(req, (err, fields, files) => {
+          if (err) reject(err);
+          else resolve({ fields, files });
+        });
+      });
+    };
 
+    const { fields, files } = await parseForm() as any;
+    
     const file = files.file;
     const uploadedFile = Array.isArray(file) ? file[0] : file;
+    
     if (!uploadedFile) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    try {
-      const result = await uploadToDropbox(uploadedFile.filepath, uploadedFile.originalFilename);
-      res.status(200).json({ 
-        success: true, 
-        file: {
-          id: result.id,
-          name: uploadedFile.originalFilename,
-          path: result.path_display
-        }
-      });
-    } catch (e: any) {
-      res.status(500).json({ error: e.message });
-    }
-  });
+    const result = await uploadToDropbox(uploadedFile.filepath, uploadedFile.originalFilename);
+    
+    res.status(200).json({ 
+      success: true, 
+      file: {
+        id: result.id,
+        name: uploadedFile.originalFilename,
+        path: result.path_display
+      }
+    });
+  } catch (e: any) {
+    console.error('Upload error:', e);
+    res.status(500).json({ error: e.message });
+  }
 } 
