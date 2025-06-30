@@ -5,7 +5,9 @@ import { enhancePDFWithTopicAndImages } from '../../lib/pdfUtils';
 
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: {
+      sizeLimit: '30mb',
+    },
   },
 };
 

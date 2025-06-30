@@ -6,7 +6,9 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: {
+      sizeLimit: '30mb',
+    },
   },
 };
 
