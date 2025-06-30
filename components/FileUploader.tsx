@@ -1,7 +1,12 @@
 import React, { useRef, useState } from 'react';
-import axios from 'axios';
+import { 
+  mergeImagesToPDF, 
+  enhancePDFWithTopicAndImages, 
+  createPDFWithTopicAndImages 
+} from '../lib/clientPdfUtils';
 
-// Ceilao FileUploader: Drag-and-drop uploader with previews, progress, and error handling
+// Ceilao FileUploader: Drag-and-drop uploader with client-side PDF generation
+// This allows handling files of any size without server limits
 
 interface FileUploaderProps {
   mode: 'images' | 'enhance';
@@ -17,7 +22,7 @@ interface UploadFile {
   canceled?: boolean;
 }
 
-const MAX_SIZE_MB = 30;
+const MAX_SIZE_MB = 100; // Increased limit since we're doing client-side processing
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ACCEPTED_PDF_TYPE = 'application/pdf';
 
@@ -80,39 +85,67 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
     }
   };
 
+  const downloadPDF = (pdfBytes: Uint8Array, filename: string) => {
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = filename;
+    a.href = url;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const onUpload = async () => {
     setError(null);
     setLoading(true);
     try {
-      // Upload files to Dropbox
-      const uploadedFiles = [];
-      for (const f of files) {
-        const formData = new FormData();
-        formData.append('file', f.file);
-        
-        const response = await axios.post('/api/upload-to-dropbox', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        
-        if (response.data.success) {
-          uploadedFiles.push(response.data.file);
-        }
-      }
-      
-      // If in 'images' mode, call the merge API with the uploaded file info
       if (mode === 'images') {
-        // For now, just show success message
-        alert(`Successfully uploaded ${uploadedFiles.length} files to Dropbox!`);
+        // Generate PDF from images (client-side)
+        const imageFiles = files.map(f => f.file);
+        let pdfBytes: Uint8Array;
+        
+        if (batchTopic) {
+          // Create PDF with topic page
+          pdfBytes = await createPDFWithTopicAndImages(batchTopic, imageFiles);
+        } else {
+          // Simple merge without topic
+          pdfBytes = await mergeImagesToPDF(imageFiles);
+        }
+        
+        // Download the generated PDF
+        const randomNum = Math.floor(100000 + Math.random() * 900000);
+        const filename = batchTopic 
+          ? `ceilao_batch_${batchTopic.replace(/[^a-zA-Z0-9]/g, '_')}_${randomNum}.pdf`
+          : `ceilao_batch_${randomNum}.pdf`;
+        
+        downloadPDF(pdfBytes, filename);
+        alert(`Successfully generated PDF with ${files.length} images!`);
       } else {
-        // For 'enhance' mode
-        alert(`Successfully uploaded ${uploadedFiles.length} files to Dropbox!`);
+        // Enhance PDF mode
+        if (!pdfFile) {
+          throw new Error('Please select a PDF file');
+        }
+        
+        const imageFiles = files.map(f => f.file);
+        const pdfBytes = await enhancePDFWithTopicAndImages(
+          pdfFile, 
+          topic || 'New Section', 
+          imageFiles
+        );
+        
+        // Download the enhanced PDF
+        const randomNum = Math.floor(100000 + Math.random() * 900000);
+        const filename = `ceilao_enhanced_${randomNum}.pdf`;
+        
+        downloadPDF(pdfBytes, filename);
+        alert(`Successfully enhanced PDF with ${files.length} images!`);
       }
       
       setFiles([]);
       setPdfFile(null);
     } catch (err: any) {
-      setError(err.message || 'Upload failed');
-      console.error('Upload error:', err);
+      setError(err.message || 'PDF generation failed');
+      console.error('PDF generation error:', err);
     } finally {
       setLoading(false);
     }
@@ -166,7 +199,7 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
           aria-label="Select image files"
         />
         <p className="text-orange font-semibold">Drag and drop images here, or <span className="underline">select files</span></p>
-        <p className="text-xs text-gray-500 mt-1">JPG, PNG, WEBP. Max {MAX_SIZE_MB}MB each.</p>
+        <p className="text-xs text-gray-500 mt-1">JPG, PNG, WEBP. Max {MAX_SIZE_MB}MB each. <strong>Client-side processing - no server limits!</strong></p>
       </div>
       {files.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-4">

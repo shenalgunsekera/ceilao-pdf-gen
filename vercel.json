@@ -1,3 +1,30 @@
 {
-  "version": 2
+  "version": 2,
+  "functions": {
+    "pages/api/merge.ts": {
+      "maxDuration": 10
+    },
+    "pages/api/enhance.ts": {
+      "maxDuration": 10
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    }
+  ]
 } 
