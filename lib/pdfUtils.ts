@@ -3,6 +3,9 @@ import sharp from 'sharp';
 
 // Ceilao PDF utilities: merge and enhance PDFs using pdf-lib
 
+const MAX_DIMENSION = 1200; // px
+const JPEG_QUALITY = 70;    // percent
+
 /**
  * Merge images into a single PDF.
  * @param images Array of image buffers
@@ -11,9 +14,12 @@ import sharp from 'sharp';
 export async function mergeImagesToPDF(images: Buffer[] | Uint8Array[]): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
   for (const imgBytes of images) {
-    // Use sharp to ensure valid PNG buffer
-    const pngBuffer = await sharp(imgBytes).png().toBuffer();
-    const img = await pdfDoc.embedPng(pngBuffer);
+    // Resize and compress to JPEG, fit inside box, no crop, no enlarge
+    const jpegBuffer = await sharp(imgBytes)
+      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: JPEG_QUALITY })
+      .toBuffer();
+    const img = await pdfDoc.embedJpg(jpegBuffer);
     const dims = img.scale(1);
     const page = pdfDoc.addPage([dims.width, dims.height]);
     page.drawImage(img, { x: 0, y: 0, width: dims.width, height: dims.height });
@@ -42,8 +48,11 @@ export async function enhancePDFWithTopicAndImages(pdfBuffer: Buffer | Uint8Arra
   });
   // Append images as new pages
   for (const imgBytes of images) {
-    const pngBuffer = await sharp(imgBytes).png().toBuffer();
-    const img = await pdfDoc.embedPng(pngBuffer);
+    const jpegBuffer = await sharp(imgBytes)
+      .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: JPEG_QUALITY })
+      .toBuffer();
+    const img = await pdfDoc.embedJpg(jpegBuffer);
     const dims = img.scale(1);
     const imgPage = pdfDoc.addPage([dims.width, dims.height]);
     imgPage.drawImage(img, { x: 0, y: 0, width: dims.width, height: dims.height });

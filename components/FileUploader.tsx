@@ -16,7 +16,7 @@ interface UploadFile {
   canceled?: boolean;
 }
 
-const MAX_SIZE_MB = 10;
+const MAX_SIZE_MB = 30;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const ACCEPTED_PDF_TYPE = 'application/pdf';
 
@@ -106,11 +106,11 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      const ts = Date.now();
+      const randomNum = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
       if (mode === 'images') {
-        a.download = `Batch_${ts}.pdf`;
+        a.download = `ceilao_doc_${randomNum}.pdf`;
       } else {
-        a.download = pdfFile ? `New_${pdfFile.name.replace(/\.pdf$/i, '')}_${ts}.pdf` : `Enhanced_${ts}.pdf`;
+        a.download = pdfFile ? `ceilao_doc_${randomNum}.pdf` : `ceilao_doc_${randomNum}.pdf`;
       }
       a.href = url;
       a.click();
