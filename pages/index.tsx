@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import FileUploader from '../components/FileUploader';
 import DarkModeToggle from '../components/DarkModeToggle';
 
@@ -16,7 +17,16 @@ export default function HomePage() {
       <header className="flex items-center p-4 border-b border-orange bg-white dark:bg-gray-900">
         <Image src="/ceilao-logo.png" alt="Ceilao Logo" width={120} height={60} priority />
         <div className="flex-1" />
-        <DarkModeToggle />
+        <div className="flex items-center space-x-3">
+          <Link 
+            href="/guide"
+            className="px-4 py-2 bg-orange/10 text-orange rounded font-semibold hover:bg-orange/20 transition flex items-center space-x-2"
+          >
+            <span>❓</span>
+            <span>How to Use</span>
+          </Link>
+          <DarkModeToggle />
+        </div>
       </header>
       <main className="max-w-2xl mx-auto p-4">
         <div className="flex space-x-4 mb-6 mt-6">
@@ -32,6 +42,22 @@ export default function HomePage() {
           ))}
         </div>
         {activeTab === 'batch' ? <BatchPDFForm /> : <EnhancePDFForm />}
+        
+        {/* Quick Help Section */}
+        <div className="mt-8 p-4 bg-orange/5 rounded-lg border border-orange/20">
+          <h3 className="text-lg font-semibold text-orange mb-3">💡 Quick Start Guide</h3>
+          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
+            <p><strong>Batch PDF:</strong> Select multiple images → Add optional topic → Click "Generate PDF"</p>
+            <p><strong>Enhance PDF:</strong> Upload existing PDF → Add images → Click "Enhance & Download"</p>
+            <p className="text-xs text-gray-500">• Supports JPG, PNG, WEBP up to 100MB each • All processing happens in your browser</p>
+          </div>
+          <Link 
+            href="/guide" 
+            className="inline-block mt-3 text-orange underline text-sm hover:text-orange/80"
+          >
+            View detailed guide →
+          </Link>
+        </div>
       </main>
     </div>
   );
