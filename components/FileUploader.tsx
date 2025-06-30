@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import axios from 'axios';
 
 // Ceilao FileUploader: Drag-and-drop uploader with previews, progress, and error handling
 
@@ -27,6 +28,10 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [batchTopic, setBatchTopic] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -79,54 +84,77 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
     }
   };
 
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      // Upload file to Dropbox via API route
+      const formData = new FormData();
+      formData.append('file', file);
+      await axios.post('/api/upload-to-dropbox', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            setUploadProgress(Math.round((progressEvent.loaded * 100) / progressEvent.total));
+          }
+        },
+      });
+      setUploadSuccess(true);
+    } catch (err) {
+      setUploadError('Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const onUpload = async () => {
     setError(null);
     setLoading(true);
-    const form = new FormData();
-    if (mode === 'enhance') {
-      if (!pdfFile) {
-        setError('Please select a PDF file.');
-        setLoading(false);
-        return;
-      }
-      form.append('pdf', pdfFile);
-      if (topic) form.append('topic', topic);
-    }
-    if (mode === 'images' && batchTopic) {
-      form.append('topic', batchTopic);
-    }
-    files.forEach(f => form.append('images', f.file));
-    // Debug: Log form data keys and file sizes
-    Array.from(form.entries()).forEach(pair => {
-      if (pair[1] instanceof File) {
-        console.log('Uploading file:', pair[0], (pair[1] as File).name, (pair[1] as File).size);
-      } else {
-        console.log('Form field:', pair[0], pair[1]);
-      }
-    });
     try {
-      const endpoint = mode === 'images' ? '/api/merge' : '/api/enhance';
-      console.log('Uploading to endpoint:', endpoint);
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        body: form,
-      });
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`Failed to generate PDF: ${res.status} ${res.statusText} - ${errText}`);
+      // For each file, get a presigned URL and upload to R2
+      const uploadedUrls: string[] = [];
+      for (const f of files) {
+        // 1. Request a presigned URL
+        const presignRes = await fetch('/api/presign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: f.file.name, contentType: f.file.type }),
+        });
+        if (!presignRes.ok) throw new Error('Failed to get upload URL');
+        const { url } = await presignRes.json();
+        // 2. Upload file directly to R2
+        const uploadRes = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': f.file.type },
+          body: f.file,
+        });
+        if (!uploadRes.ok) throw new Error('Failed to upload to R2');
+        // 3. Store the R2 URL (public URL pattern)
+        const r2Url = url.split('?')[0];
+        uploadedUrls.push(r2Url);
       }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const randomNum = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
+      // If in 'images' mode, call the new API to generate the PDF from R2 URLs
       if (mode === 'images') {
+        const mergeRes = await fetch('/api/mergeFromUrls', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrls: uploadedUrls, topic: batchTopic }),
+        });
+        if (!mergeRes.ok) throw new Error('Failed to generate PDF from R2 images');
+        const blob = await mergeRes.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const randomNum = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
         a.download = `ceilao_doc_${randomNum}.pdf`;
+        a.href = url;
+        a.click();
+        window.URL.revokeObjectURL(url);
       } else {
-        a.download = pdfFile ? `ceilao_doc_${randomNum}.pdf` : `ceilao_doc_${randomNum}.pdf`;
+        // For 'enhance' mode, just alert for now (future: support PDF enhancement from R2)
+        alert('Upload(s) complete! Files stored in R2.');
       }
-      a.href = url;
-      a.click();
-      window.URL.revokeObjectURL(url);
       setFiles([]);
       setPdfFile(null);
     } catch (err: any) {
