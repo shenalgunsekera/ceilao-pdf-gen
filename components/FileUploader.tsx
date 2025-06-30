@@ -199,7 +199,7 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
           aria-label="Select image files"
         />
         <p className="text-orange font-semibold">Drag and drop images here, or <span className="underline">select files</span></p>
-        <p className="text-xs text-gray-500 mt-1">JPG, PNG, WEBP. Max {MAX_SIZE_MB}MB each. <strong>Client-side processing - no server limits!</strong></p>
+        <p className="text-xs text-gray-500 mt-1">JPG, PNG, WEBP. Max {MAX_SIZE_MB}MB each.</p>
       </div>
       {files.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-4">
