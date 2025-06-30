@@ -96,13 +96,25 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
       form.append('topic', batchTopic);
     }
     files.forEach(f => form.append('images', f.file));
+    // Debug: Log form data keys and file sizes
+    for (let pair of form.entries()) {
+      if (pair[1] instanceof File) {
+        console.log('Uploading file:', pair[0], (pair[1] as File).name, (pair[1] as File).size);
+      } else {
+        console.log('Form field:', pair[0], pair[1]);
+      }
+    }
     try {
       const endpoint = mode === 'images' ? '/api/merge' : '/api/enhance';
+      console.log('Uploading to endpoint:', endpoint);
       const res = await fetch(endpoint, {
         method: 'POST',
         body: form,
       });
-      if (!res.ok) throw new Error('Failed to generate PDF');
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Failed to generate PDF: ${res.status} ${res.statusText} - ${errText}`);
+      }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -119,6 +131,7 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
       setPdfFile(null);
     } catch (err: any) {
       setError(err.message || 'Upload failed');
+      console.error('Upload error:', err);
     } finally {
       setLoading(false);
     }

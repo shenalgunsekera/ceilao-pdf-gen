@@ -16,10 +16,16 @@ import formidable from 'formidable';
 import fs from 'fs';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('API /api/merge hit:', req.method);
   if (req.method !== 'POST') return res.status(405).end();
   const form = formidable({ multiples: true });
   form.parse(req, async (err, fields, files) => {
-    if (err) return res.status(400).json({ error: 'Upload error' });
+    if (err) {
+      console.error('Formidable error:', err);
+      return res.status(400).json({ error: 'Upload error' });
+    }
+    console.log('Fields:', fields);
+    console.log('Files:', files);
     const images = Array.isArray(files.images) ? files.images : [files.images];
     try {
       const buffers = await Promise.all(images.filter(Boolean).map(f => fs.promises.readFile(f.filepath)));
@@ -48,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.setHeader('Content-Disposition', `attachment; filename=Batch_${Date.now()}.pdf`);
       res.send(Buffer.from(pdf));
     } catch (e) {
-      console.error(e);
+      console.error('PDF generation error:', e);
       res.status(500).json({ error: e.message || 'Failed to generate PDF' });
     }
   });

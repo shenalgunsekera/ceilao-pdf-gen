@@ -15,10 +15,16 @@ import formidable from 'formidable';
 import fs from 'fs';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  console.log('API /api/enhance hit:', req.method);
   if (req.method !== 'POST') return res.status(405).end();
   const form = formidable({ multiples: true });
   form.parse(req, async (err, fields, files) => {
-    if (err) return res.status(400).json({ error: 'Upload error' });
+    if (err) {
+      console.error('Formidable error:', err);
+      return res.status(400).json({ error: 'Upload error' });
+    }
+    console.log('Fields:', fields);
+    console.log('Files:', files);
     try {
       const pdfFile = Array.isArray(files.pdf) ? files.pdf[0] : files.pdf;
       if (!pdfFile) return res.status(400).json({ error: 'No PDF uploaded' });
@@ -31,6 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.setHeader('Content-Disposition', `attachment; filename=New_${pdfFile.originalFilename?.replace(/\.pdf$/i, '') || 'Enhanced'}_${Date.now()}.pdf`);
       res.send(Buffer.from(pdf));
     } catch (e) {
+      console.error('PDF enhancement error:', e);
       res.status(500).json({ error: 'Failed to enhance PDF' });
     }
   });
