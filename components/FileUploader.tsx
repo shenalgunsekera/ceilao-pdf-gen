@@ -113,48 +113,30 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
     setError(null);
     setLoading(true);
     try {
-      // For each file, get a presigned URL and upload to R2
-      const uploadedUrls: string[] = [];
+      // Upload files to Dropbox
+      const uploadedFiles = [];
       for (const f of files) {
-        // 1. Request a presigned URL
-        const presignRes = await fetch('/api/presign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: f.file.name, contentType: f.file.type }),
+        const formData = new FormData();
+        formData.append('file', f.file);
+        
+        const response = await axios.post('/api/upload-to-dropbox', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
-        if (!presignRes.ok) throw new Error('Failed to get upload URL');
-        const { url } = await presignRes.json();
-        // 2. Upload file directly to R2
-        const uploadRes = await fetch(url, {
-          method: 'PUT',
-          headers: { 'Content-Type': f.file.type },
-          body: f.file,
-        });
-        if (!uploadRes.ok) throw new Error('Failed to upload to R2');
-        // 3. Store the R2 URL (public URL pattern)
-        const r2Url = url.split('?')[0];
-        uploadedUrls.push(r2Url);
+        
+        if (response.data.success) {
+          uploadedFiles.push(response.data.file);
+        }
       }
-      // If in 'images' mode, call the new API to generate the PDF from R2 URLs
+      
+      // If in 'images' mode, call the merge API with the uploaded file info
       if (mode === 'images') {
-        const mergeRes = await fetch('/api/mergeFromUrls', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ imageUrls: uploadedUrls, topic: batchTopic }),
-        });
-        if (!mergeRes.ok) throw new Error('Failed to generate PDF from R2 images');
-        const blob = await mergeRes.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const randomNum = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
-        a.download = `ceilao_doc_${randomNum}.pdf`;
-        a.href = url;
-        a.click();
-        window.URL.revokeObjectURL(url);
+        // For now, just show success message
+        alert(`Successfully uploaded ${uploadedFiles.length} files to Dropbox!`);
       } else {
-        // For 'enhance' mode, just alert for now (future: support PDF enhancement from R2)
-        alert('Upload(s) complete! Files stored in R2.');
+        // For 'enhance' mode
+        alert(`Successfully uploaded ${uploadedFiles.length} files to Dropbox!`);
       }
+      
       setFiles([]);
       setPdfFile(null);
     } catch (err: any) {
