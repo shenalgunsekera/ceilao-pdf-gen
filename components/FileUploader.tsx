@@ -97,13 +97,13 @@ export default function FileUploader({ mode, topic }: FileUploaderProps) {
     }
     files.forEach(f => form.append('images', f.file));
     // Debug: Log form data keys and file sizes
-    for (let pair of form.entries()) {
+    Array.from(form.entries()).forEach(pair => {
       if (pair[1] instanceof File) {
         console.log('Uploading file:', pair[0], (pair[1] as File).name, (pair[1] as File).size);
       } else {
         console.log('Form field:', pair[0], pair[1]);
       }
-    }
+    });
     try {
       const endpoint = mode === 'images' ? '/api/merge' : '/api/enhance';
       console.log('Uploading to endpoint:', endpoint);
